@@ -1,0 +1,22 @@
+{
+  "name": "testing",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Test app",
+  "author": "Simon Greig <simon.greig@gmail.com>",
+  "main": "suntimes.js",
+  "scripts": {
+    "start": "node suntimes.js"
+  },
+  "dependencies": {
+    "cfenv": "^1.0.3",
+    "express": "4.13.x",
+    "node-schedule": "^1.2.0",
+    "request": "^2.79.0",
+    "suncalc": "^1.8.0"
+  },
+  "repository": {},
+  "engines": {
+    "node": "4.x"
+  }
+}
