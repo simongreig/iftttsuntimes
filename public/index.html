@@ -2,7 +2,7 @@
 <html>
 
   <head>
-    <title>NodeJS Starter Application</title>
+    <title>Sunrise/Sunset Event Generator</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,12 +12,44 @@
   <body>
     <table>
       <tr>
-        <td style= "width:30%;">
-          <img class = "newappIcon" src="images/newapp-icon.png">
-        </td>
         <td>
-          <h1 id="message">Hello World!</h1>
-          <p class='description'></p> Thanks for creating a <span class = "blue">NodeJS Starter Application</span>.
+          <h1>IFTTT Sunrise/Sunset Trigger</h1>
+          <h3>Proper UI coming soon!</h3>
+          <h2>How to connect:</h2>
+          <ol>
+            <li>Go to <a href="https://ifttt.com/maker" target="_blank">IFTTT Maker</a> and connect it to your IFTTT account</li>
+            <li>Click the 'settings' cog in the top right of the maker screen</li>
+            <li>Make a note of your 'Maker key'.  The maker key is the text in the URL part of the screen.  You only need the last bit.  So for example if the URL is:  <pre>https://maker.ifttt.com/use/xyZvZHbPdm3zVOjip5H99a</pre> then the maker id is: <pre>xyZvZHbPdm3zVOjip5H99a</pre></li>
+            <li>Create two Maker applets in IFTTT.  The first one should have an (all lower case) event name of: <pre>sunrise</pre>  The second should have an event name of:<pre>sunset</pre> Wire them up to trigger whatever, for e.g. turn on a light at sunset.</li>
+            <li>Add the timer using: <pre>http://iftttsuntimes.mybluemix.net/add/[maker key]/[your UK postcode with no spaces]</pre></li>
+            <li>Wait!</li>
+          </ol>
+
+          <h2>Testing</h2>
+          <ul>
+            <li>
+          Test that the events are going to trigger correctly at the specific time.  This will trigger the event for real so be prepare for the conseqences!
+          <pre>http://iftttsuntimes.mybluemix.net/test/sunrise/[IFTTT_maker_key]</pre>
+          <pre>http://iftttsuntimes.mybluemix.net/test/sunset/[IFTTT_maker_key]</pre></li>
+          <li>Check the timers look right:
+          <pre>http://iftttsuntimes.mybluemix.net/timers/[maker key]</pre></li>
+        </ul>
+
+          <h2>Valid commands:</h2>
+          <ul>
+            <li>Add a timer option 1: <pre>http://iftttsuntimes.mybluemix.net/add/[IFTTT_maker_key]/[UK_postcode_no_spaces]</pre></li>
+            <li>Add a timer option 2: <pre>http://iftttsuntimes.mybluemix.net/add/[IFTTT_maker_key]/[lat]/[long]</pre></li>
+            <li>Check timers: <pre>http://iftttsuntimes.mybluemix.net/timers/[IFTTT_maker_key]</pre></li>
+            <li>Test the sunrise event: <pre>http://iftttsuntimes.mybluemix.net/test/sunrise/[IFTTT_maker_key]</pre></li>
+            <li>Test the sunset event: <pre>http://iftttsuntimes.mybluemix.net/test/sunset/[IFTTT_maker_key]</pre></li>
+          </ul>
+          <p>Note that invalid keys will be auto deleted when the timer is triggered.</p>
+          <h2>Examples:</h2>
+          <ul>
+            <li><a target="_blank" href="http://iftttsuntimes.mybluemix.net/add/TEST1/SE19PZ"</a>http://iftttsuntimes.mybluemix.net/add/TEST1/SE19PZ</li>
+            <li><a target="_blank" href="http://iftttsuntimes.mybluemix.net/add/TEST2/51.5095848/-0.1118636"</a>http://iftttsuntimes.mybluemix.net/add/TEST2/51.5095848/-0.1118636</li>
+            <li><a target="_blank" href="http://iftttsuntimes.mybluemix.net/timers/TEST"</a>http://iftttsuntimes.mybluemix.net/timers/TEST</li>
+          </ul>
         </td>
       </tr>
     </table>
