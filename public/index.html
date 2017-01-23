@@ -3,6 +3,7 @@
 
   <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Nunito:400,900" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="suntimes.css">
     <title>IFTTT Sunrise/Sunset Event Generator</title>
 
@@ -16,8 +17,9 @@
 
 
     <div id="wrapper">
-      <div id="content">
         <div class="title">IFTTT Sunrise/Sunset Event Generator</div>
+        <div id="content">
+
 
         <div id="key-group">
 
@@ -47,10 +49,6 @@
             <button class="group" id="change-location-button">Change Location</button>
           </div>
 
-          <div id="link-group">
-            <div class="group smaller">Permalink: </div>
-            <div class="group smaller" id="permalink"></div>
-          </div>
 
         </div>
 
@@ -69,13 +67,18 @@
 
 
       <div id="sidebar">
-        <div id="map"></div>
-        <div id="location"></div>
+
       </div>
       <div id="cleared"></div>
     </div>
 
     <div id="wrapper2">
+      <div id="map"></div>
+      <div id="location"></div>
+      <div id="link-group">
+        <div class="group smaller">Permalink: </div>
+        <div class="group smaller" id="permalink"></div>
+      </div>
       <div id="help">Click for Help</div>
       <div id="help-panel">
         <h3>How to connect:</h3>

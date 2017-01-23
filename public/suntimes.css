@@ -1,42 +1,52 @@
 body {
-  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+/*  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;*/
+  font-family: 'Nunito', sans-serif;
   font-weight: 300;
-  font-size: 12pt;
+  font-size: 14pt;
 }
 
 a {
   text-decoration: none;
-  color: black;
+  color: white;
 }
 
 a:hover {
     text-decoration: underline;
 }
 
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+    outline: none;
+}
+
 
 #map {
-  width: 200px;
-  height: 450px;
+  width: 750px;
+  height: 200px;
 }
 
 
 #wrapper, #wrapper2 {
   margin: auto;
-  width: 650px;
-  background-color: #EEE;
+  width: 750px;
+  background-color: #009BFF;
+  color: white;
   padding: 10px;
 }
 #wrapper {
-  height: 500px;
+
 }
 
 
 #content {
-  float: left;
-  width: 450px;
+/*  float: left; */
+  width: 440px;
+  margin:auto;
 }
 #sidebar {
-  float: right;
+/*  float: right; */
   width: 200px;
 }
 #cleared {
@@ -48,22 +58,41 @@ a:hover {
 
 .title {
   font-size: 30pt;
+  font-weight: bold;
   padding-bottom: 30px;
+  text-align: center;
 }
 
 .group {
   float: left;
 }
 
+input {
+  border: 2px solid #006cb2;
+  border-radius: 8px;
+  padding: 5px;
+  font-size: 10pt;
+  margin-top: -6;
+}
 
-#no-key, #key-group, #sunset-group, #sunrise-group, #change-location-group, #link-group  {
+
+#no-key, #key-group, #sunset-group, #sunrise-group, #change-location-group  {
   clear:both;
   padding-bottom: 15px;
   height: 60px;
+  line-height: 40px;
+}
+
+#key-group {
+
 }
 
 #link-group {
-  font-size: 8pt;
+  clear:both;
+  font-size: 10pt;
+  height: 20px;
+  padding-top: 10px;
+  padding-bottom: 15px;
 }
 
 
@@ -71,7 +100,7 @@ a:hover {
 button {
     background-color: #fff;
     border: solid 2px;
-    border-color: #008CBA;
+    border-color: #006cb2;
     color: black;
     padding: 5px 24px;
     text-align: center;
@@ -82,20 +111,22 @@ button {
     -webkit-transition-duration: 0.4s; /* Safari */
     transition-duration: 0.4s;
     position: relative;
-    top: -8px;
+    top: 3px;
 }
 
 .button-fail {
-  background-color: #f44336; /* Red */
+  background-color: #e42d26; /* Red */
+  border-color: #e42d26;
 }
 
 .button-pass {
-  background-color: #4CAF50; /* Green */
+  background-color: #2abe25; /* Green */
+  border-color: #2abe25;
 }
 
 
 button:hover {
-    background-color: #008CBA;
+    background-color: #006cb2;
     color: white;
 }
 
@@ -105,7 +136,7 @@ li {
 
 
 .sun-intro, .maker-intro {
-  width: 110px;
+  width: 130px;
 }
 
 .time-text, .form-text {
@@ -123,4 +154,12 @@ li {
 #help-panel {
     padding: 0px;
     display: none;
+}
+
+#map-bubble {
+  color: black;
+  font-size: 8pt;
+}
+#bubble-title {
+  font-weight: bold;
 }

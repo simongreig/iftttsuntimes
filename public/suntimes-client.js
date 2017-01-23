@@ -20,7 +20,6 @@
       $('div#map').text("");
       $('div#permalink').text("");
 
-
       var url = "/timers/"+$("#key-input").val() ;
       console.log (url);
         $.get(url, function(data, status){
@@ -42,7 +41,7 @@
                 console.log("document.location.host : "+document.location.host);
                 console.log("document.location.pathname : "+document.location.pathname);
 
-                var permy = document.location.origin + "/index.html?key=" + $("#key-input").val();
+                var permy = document.location.origin + document.location.pathname + "?key=" + $("#key-input").val()
                 $('div#permalink').html("<a href='"+permy+"'>"+permy+"</a>");
 
                 // Reset the test buttons
@@ -59,21 +58,40 @@
                 $('#change-location-button').show();
 
 
-                  var uluru = {lat: dataObj.lat, lng: dataObj.long};
+                  var locn = {lat: dataObj.lat, lng: dataObj.long};
                   var map = new google.maps.Map(document.getElementById('map'), {
                     zoom: 15,
-                    center: uluru,
+                    center: locn,
                     draggable: false,
                     streetViewControl: false,
                     mapTypeControl: false,
                     zoomControl: false
                   });
                   var marker = new google.maps.Marker({
-                    position: uluru,
-                    map: map
+                    position: locn,
+                    map: map,
+                    title: dataObj.loc
                   });
 
-                  $('div#location').text(dataObj.loc);
+//                  $('div#location').text(dataObj.loc);
+
+                  var contentString = '<div id="map-bubble">' +
+                    '<div id="bubble-title">' + dataObj.loc + '</div>'+
+                    '<div>Next sunrise: ' + sunriseDate.toLocaleDateString() + " " + sunriseDate.toLocaleTimeString() + '</div>'+
+                    '<div>Next sunset: ' + sunsetDate.toLocaleDateString() + " " + sunsetDate.toLocaleTimeString() + '</div>' +
+                    '</div>';
+
+
+                var infowindow = new google.maps.InfoWindow({
+                content: contentString
+                });
+
+                  marker.addListener('click', function() {
+                    infowindow.open(map, marker);
+                  });
+
+
+
 
 
               } else {
@@ -107,7 +125,8 @@
        * Handles the lookup button being clicked.
        */
       $("#key-lookup-button").click(function(){
-        onLookupClick();
+        location.href = document.location.origin + document.location.pathname + "?key=" + $("#key-input").val();
+//        onLookupClick();
       });
 
 

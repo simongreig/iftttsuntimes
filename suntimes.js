@@ -214,8 +214,6 @@ function setSunriseTimer (keyObj, date) {
       debug ("setSunriseTimer: Can't find keyObj for key", schedKey.key, keys);
     }
 
-
-
   }.bind(null, keyObj));
 
   console.log (hideKey(keyObj.key), "Sunrise timer Set " + JSON.stringify(sunriseTimer.nextInvocation()));
@@ -284,7 +282,11 @@ function setSunsetTimer (keyObj, date) {
 //******************************************************************************
 app.get('/add/:key/:lat/:long', function (req, res) {
 
-  var keyObj = addKeyTimer (req.params.key,req.params.lat,req.params.long);
+  var keyObj = {};
+  keyObj.key = req.params.key;
+  keyObj.lat = req.params.lat;
+  keyObj.long = req.params.long;
+  addKeyTimer (keyObj);
   addKeyObj (keyObj, function(){
     getKeyObjs(function(data){
 
@@ -316,12 +318,13 @@ app.get('/add/:key/:postcode', function (req, res) {
     debug ("geocoder.geocode", req.params.postcode, err, data);
 
     if (data.results.length > 0 ) {
-      var lat = data.results[0].geometry.location.lat;
-      var long = data.results[0].geometry.location.lng;
-      var loc = data.results[0].formatted_address;
+      var keyObj = {};
+      keyObj.key = req.params.key;
+      keyObj.lat = data.results[0].geometry.location.lat;
+      keyObj.long = data.results[0].geometry.location.lng;
+      keyObj.loc = data.results[0].formatted_address;
 
-      var keyObj = addKeyTimer (req.params.key,lat,long);
-      keyObj.loc = loc;
+      addKeyTimer (keyObj);
       addKeyObj (keyObj, function(){
         getKeyObjs(function(data){
 
@@ -532,21 +535,21 @@ app.get('/timers/:key', function (req, res) {
 // Add Key to the master list.
 //
 //******************************************************************************
-function addKeyTimer (key, lat, long) {
+function addKeyTimer (keyObj) {
 
-  var keyObj = {};
+/*  var keyObj = {};
   keyObj.key = key;
   keyObj.lat = lat;
-  keyObj.long = long;
+  keyObj.long = long;*/
 
   // Does this key already exist?
   var foundIdx = keys.findIndex(function(obj) {
-    return obj.key == key;
+    return obj.key == keyObj.key;
   });
 
   if (foundIdx != -1) {
     // Remove existing and cancel timers.
-    console.log ("Cancelled timers for key:", hideKey(key));
+    console.log ("Cancelled timers for key:", hideKey(keyObj.key));
     keys[foundIdx].sunriseTimer.cancel();
     keys[foundIdx].sunsetTimer.cancel();
     keys.splice (foundIdx, 1);
@@ -554,7 +557,7 @@ function addKeyTimer (key, lat, long) {
 
   // Find out if today's sunrise and set have already happened.
   var now = new Date ();
-  var times = SunCalc.getTimes(now, lat, long);
+  var times = SunCalc.getTimes(now, keyObj.lat, keyObj.long);
 
   // Sunrise
   if (now > times.sunrise)
@@ -563,20 +566,20 @@ function addKeyTimer (key, lat, long) {
     var tomorrow = new Date();
     tomorrow = tomorrow.setDate(now.getDate() + 1);
 
-    times = SunCalc.getTimes(tomorrow, lat, long);
+    times = SunCalc.getTimes(tomorrow, keyObj.lat, keyObj.long);
   }
 
   keyObj.sunriseTimer = setSunriseTimer (keyObj, times.sunrise);
 
   // Sunset
-  times = SunCalc.getTimes(now, lat, long);
+  times = SunCalc.getTimes(now, keyObj.lat, keyObj.long);
   if (now > times.sunset)
   {
     // Today's sunset has already happened so find out tomorrow's
     var tomorrow = new Date();
     tomorrow = tomorrow.setDate(now.getDate() + 1);
 
-    times = SunCalc.getTimes(tomorrow, lat, long);
+    times = SunCalc.getTimes(tomorrow, keyObj.lat, keyObj.long);
   }
 
   keyObj.sunsetTimer = setSunsetTimer (keyObj, times.sunset);
@@ -590,7 +593,7 @@ function addKeyTimer (key, lat, long) {
 getKeyObjs ( function(data) {
   for (var i = 0; i < data.length; i++) {
     getKeyObj (data[i].key, function (data) {
-      addKeyTimer(data.key, data.lat, data.long);
+      addKeyTimer(data);
     });
   }
 });
@@ -613,12 +616,22 @@ app.listen(appEnv.port, '0.0.0.0', function() {
 // *********
 
 
-/*var keyObj = addKeyTimer ("KEY-TIMER-TEST", "51", "0");
+/*
+
+// Testing that a key object will go into the database correctly.
+var keyObj = {};
+keyObj.key = "KEY-TIMER-TEST";
+keyObj.lat = "51";
+keyObj.long = "0";
+keyObj.loc = "Somewhere, someplace, UK";
+addKeyTimer (keyObj);
 addKeyObj (keyObj, function(){
   getKeyObjs(function(data){
     console.log (JSON.stringify(data));
   })
-});*/
+});
+
+*/
 
 /*
 
