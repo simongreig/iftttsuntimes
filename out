@@ -1,0 +1,9 @@
+
+> testing@0.0.1 debug /Users/simongreig/GitHub/iftttsuntimes
+> DEBUG=main node suntimes.js
+
+IFTTT Sun Times starting on http://localhost:6006
+Setting sunrise trigger for key ******HbPdm3zVOjip5H77r at Fri Jan 20 2017 07:56:23 GMT+0000 (GMT)
+Sunrise timer Set "2017-01-20T07:56:23.324Z"
+Setting sunset trigger for key ******HbPdm3zVOjip5H77r at Thu Jan 19 2017 16:30:46 GMT+0000 (GMT)
+Sunset timer Set "2017-01-19T16:30:46.736Z"

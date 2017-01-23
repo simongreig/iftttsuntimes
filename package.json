@@ -6,12 +6,16 @@
   "author": "Simon Greig <simon.greig@gmail.com>",
   "main": "suntimes.js",
   "scripts": {
-    "start": "node suntimes.js"
+    "start": "node suntimes.js",
+    "debug": "DEBUG=suntimes node suntimes.js"
   },
   "dependencies": {
     "cfenv": "^1.0.3",
     "cloudant": "^1.7.0",
-    "express": "4.13.x",
+    "debug": "^2.6.0",
+    "express": "^4.13.4",
+    "geocoder": "^0.2.2",
+    "helmet": "^3.4.0",
     "node-schedule": "^1.2.0",
     "request": "^2.79.0",
     "suncalc": "^1.8.0"

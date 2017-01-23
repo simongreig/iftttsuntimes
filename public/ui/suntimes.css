@@ -1,0 +1,118 @@
+body {
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+  font-weight: 300;
+  font-size: 12pt;
+}
+
+
+#map {
+  width: 200px;
+  height: 400px;
+}
+
+
+#wrapper, #wrapper2 {
+  margin: auto;
+  width: 650px;
+  background-color: #EEE;
+  padding: 10px;
+}
+#wrapper {
+  height: 500px;
+}
+
+
+#content {
+  float: left;
+  width: 450px;
+}
+#sidebar {
+  float: right;
+  width: 200px;
+}
+#cleared {
+  clear: both;
+}
+#location {
+  text-align: center;
+}
+
+.title {
+  font-size: 30pt;
+  padding-bottom: 30px;
+}
+
+.group {
+  float: left;
+}
+
+
+#no-key, #key-group, #sunset-group, #sunrise-group, #change-location-group  {
+  clear:both;
+  padding-bottom: 15px;
+  height: 60px;
+  line-height: 60px;
+}
+
+
+.smaller {
+  font-size:8pt;
+}
+
+
+button {
+    background-color: #fff;
+    border: solid 2px;
+    border-color: #008CBA;
+    color: black;
+    padding: 5px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    border-radius: 8px;
+    -webkit-transition-duration: 0.4s; /* Safari */
+    transition-duration: 0.4s;
+    position: relative;
+    top: 15px;
+}
+
+.button-fail {
+  background-color: #f44336; /* Red */
+}
+
+.button-pass {
+  background-color: #4CAF50; /* Green */
+}
+
+
+button:hover {
+    background-color: #008CBA;
+    color: white;
+}
+
+li {
+  padding-bottom: 15px;
+}
+
+
+.sun-intro, .maker-intro {
+  width: 110px;
+}
+
+.time-text, .form-text {
+  width: 200px;
+}
+
+#help {
+  cursor: pointer;
+}
+
+#help:hover {
+    text-decoration: underline;
+}
+
+#help-panel {
+    padding: 0px;
+    display: none;
+}

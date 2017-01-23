@@ -1,4 +1,6 @@
+'use strict';
 
+console.log ("suntimes.js Running in NODE_ENV=" + process.env.NODE_ENV);
 
 var request = require('request');
 var SunCalc = require('suncalc');
@@ -7,19 +9,51 @@ var schedule = require('node-schedule');
 const express = require('express');
 var cfenv = require('cfenv');
 var Cloudant = require('cloudant');
-const app = express();
+var helmet = require('helmet')
+var debug = require('debug')('suntimes');
 
-// TODO move these into an environment file.
-var credentials = {
-  "username": "83652124-65a3-421f-8693-5358fd836b05-bluemix",
-  "password": "84a75c81cf6c0217c19ace8478f2355b6c8d392ea355abff76c357251f6ffd20",
-  "host": "83652124-65a3-421f-8693-5358fd836b05-bluemix.cloudant.com",
-  "port": 443,
-  "url": "https://83652124-65a3-421f-8693-5358fd836b05-bluemix:84a75c81cf6c0217c19ace8478f2355b6c8d392ea355abff76c357251f6ffd20@83652124-65a3-421f-8693-5358fd836b05-bluemix.cloudant.com"
+const app = express();
+app.use (helmet());
+
+var credentials = {} ;
+
+//******************************************************************************
+//
+// Get the database parameters from the VCAP_SERVICES.  If running locally
+// then get from the local environment.
+//
+//******************************************************************************
+function initDBConnection() {
+  var vcapServices = {};
+  if (process.env.VCAP_SERVICES) {
+    vcapServices = JSON.parse(process.env.VCAP_SERVICES);
+  } else {
+    try {
+      vcapServices = require('./local/VCAP_SERVICES.json');
+      console.log ("Running with LOCAL VCAP_SERVICES", vcapServices);
+    } catch (e) {
+      debug(e);
+    }
+  }
+
+	if(vcapServices) {
+    credentials = vcapServices.cloudantNoSQLDB[0].credentials ;
+    debug ("Using credentials", credentials);
+	} else{
+		debug ('VCAP_SERVICES environment variable not set!');
+	}
 }
 
-// Initialize the library with my account.
+// Sort out the database connections and names.
+initDBConnection();
 var cloudant = Cloudant(credentials);
+var dbName = "iftttsuntimes-test";
+if (process.env.NODE_ENV == "production") {
+  dbName = "iftttsuntimes";
+}
+console.log ("Using DB:", dbName);
+var db = cloudant.db.use(dbName);
+
 
 // serve the files out of ./public as our main files
 app.use(express.static(__dirname + '/public'));
@@ -47,8 +81,6 @@ function hideKey (key) {
 //
 //******************************************************************************
 var addKeyObj = function (obj, callback) {
-  var db = cloudant.db.use("iftttsuntimes");
-
   // Try to add the key by first reading it to make sure we don't duplicate.
   db.get(obj.key, function(err, data) {
 
@@ -67,6 +99,7 @@ var addKeyObj = function (obj, callback) {
     updateData.keyObj.key = obj.key;
     updateData.keyObj.lat = obj.lat;
     updateData.keyObj.long = obj.long;
+    updateData.keyObj.loc = obj.loc;
 
 
     db.insert(updateData, function(err, data) {
@@ -85,7 +118,6 @@ var addKeyObj = function (obj, callback) {
 //
 //******************************************************************************
 var getKeyObjs = function (callback) {
-    var db = cloudant.db.use("iftttsuntimes");
     db.list(function(err, data) {
       if (err) {
         callback (err);
@@ -101,9 +133,9 @@ var getKeyObjs = function (callback) {
 //
 //******************************************************************************
 var getKeyObj = function (key, callback) {
-    var db = cloudant.db.use("iftttsuntimes");
 
     db.get(key, function(err, data) {
+      debug ("getKeyObj", key, err, data)
       if (!data) {
         callback(err);
       } else {
@@ -119,12 +151,11 @@ var getKeyObj = function (key, callback) {
 //******************************************************************************
 var deleteKeyObj = function (key, callback) {
 
-  var db = cloudant.db.use("iftttsuntimes");
-
   db.get(key, function(err, data) {
 
     if (err) {
-      callback(err);
+      debug ("deleteKeyObj: Error:", err)
+      // callback(err);
     } else {
       db.destroy(data._id, data._rev, function(err, data) {
         // the callback is not in the scope of the destroy function
@@ -144,18 +175,19 @@ var deleteKeyObj = function (key, callback) {
 // Set the sunrise timer.
 //
 //******************************************************************************
-function setSunriseTimer (key, date) {
+function setSunriseTimer (keyObj, date) {
 
-  console.log ("Setting sunrise trigger for key " + hideKey(key.key) + " at " + date);
+  console.log ("Setting sunrise trigger for key " + hideKey(keyObj.key) + " at " + date);
   var sunriseTimer = schedule.scheduleJob (date, function(schedKey){
 
-    console.log ("Sunrise for key " + hideKey(schedKey.key) + "! Time now " + new Date() );
+    console.log ("Sunrise for key " + hideKey(schedKey.key) + ". Time now " + new Date() );
 
     // Fire event.
     var url = "https://maker.ifttt.com/trigger/sunrise/with/key/" + schedKey.key;
     request(url, function (error, response, body) {
+      console.log ("IFTTT sunrise response for key " + hideKey(schedKey.key) + ". Time now " + new Date(), body );
       if (response.statusCode == 401) {
-        console.log ("Key does not exist:", schedKey.key);
+        debug ("setSunriseTimer: IFTTT does not recognise key:", schedKey.key);
         deleteKeyObj(schedKey.key);
         return;  // Don't create another timer.
       }
@@ -166,11 +198,27 @@ function setSunriseTimer (key, date) {
 
     var times = SunCalc.getTimes(tomorrow, schedKey.lat, schedKey.long);
 
-    setSunriseTimer (key, times.sunrise);
+    var timer = setSunriseTimer (schedKey, times.sunrise);
 
-  }.bind(null, key));
+    // Find the timer in the array.
+    var foundIdx = keys.findIndex(function(obj) {
+      return obj.key == schedKey.key;
+    });
 
-  console.log ("Sunrise timer Set " + JSON.stringify(sunriseTimer.nextInvocation()));
+
+    if (foundIdx != -1) {
+      // Remove existing and cancel timers.
+      debug ("Replacing sunrise object for key ", schedKey.key, "with", timer.nextInvocation());
+      keys[foundIdx].sunriseTimer = timer;
+    } else {
+      debug ("setSunriseTimer: Can't find keyObj for key", schedKey.key, keys);
+    }
+
+
+
+  }.bind(null, keyObj));
+
+  console.log (hideKey(keyObj.key), "Sunrise timer Set " + JSON.stringify(sunriseTimer.nextInvocation()));
   return sunriseTimer;
 }
 
@@ -179,18 +227,19 @@ function setSunriseTimer (key, date) {
 // Set the sunset timer.
 //
 //******************************************************************************
-function setSunsetTimer (key, date) {
+function setSunsetTimer (keyObj, date) {
 
-  console.log ("Setting sunset trigger for key " + hideKey(key.key) + " at " + date);
+  console.log ("Setting sunset trigger for key " + hideKey(keyObj.key) + " at " + date);
   var sunsetTimer = schedule.scheduleJob (date, function(schedKey){
 
-    console.log ("Sunset for key " + hideKey(schedKey.key) + "! Time now " + new Date() );
+    console.log ("Sunset for key " + hideKey(schedKey.key) + ". Time now " + new Date() );
 
     // Fire event.
     var url = "https://maker.ifttt.com/trigger/sunset/with/key/" + schedKey.key;
     request(url, function (error, response, body) {
+      console.log ("IFTTT sunrise response for key" + hideKey(schedKey.key) + ". Time now " + new Date(), body );
       if (response.statusCode == 401) {
-        console.log ("Key does not exist:", schedKey.key);
+        debug ("setSunsetTimer: IFTTT does not recognise key:", schedKey.key);
         deleteKeyObj(schedKey.key);
         return;  // Don't create another timer.
       }
@@ -201,11 +250,26 @@ function setSunsetTimer (key, date) {
 
     var times = SunCalc.getTimes(tomorrow, schedKey.lat, schedKey.long);
 
-    setSunsetTimer (key, times.sunset);
+    var timer = setSunsetTimer (schedKey, times.sunset);
 
-  }.bind(null, key));
+    // Find the timer in the array.
+    var foundIdx = keys.findIndex(function(obj) {
+      return obj.key == schedKey.key;
+    });
 
-  console.log ("Sunset timer Set " + JSON.stringify(sunsetTimer.nextInvocation()));
+    if (foundIdx != -1) {
+      // Remove existing and cancel timers.
+      debug ("Replacing sunset object for key", schedKey.key, "with", timer.nextInvocation());
+      keys[foundIdx].sunsetTimer = timer;
+    } else {
+      debug ("setSunsetTimer: Can't find keyObj for key", schedKey.key);
+    }
+
+
+
+  }.bind(null, keyObj));
+
+  console.log (hideKey(keyObj.key), "Sunset timer Set " + JSON.stringify(sunsetTimer.nextInvocation()));
   return sunsetTimer;
 }
 
@@ -247,22 +311,35 @@ app.get('/add/:key/:postcode', function (req, res) {
 
   geocoder.geocode(req.params.postcode, function ( err, data ) {
     // do something with data
-    res.end(JSON.stringify(data));
+//    res.end(JSON.stringify(data));
 
-    var lat = data.results[0].geometry.location.lat;
-    var long = data.results[0].geometry.location.lng;
+    debug ("geocoder.geocode", req.params.postcode, err, data);
 
-    var keyObj = addKeyTimer (req.params.key,lat,long);
-    addKeyObj (keyObj, function(){
-      getKeyObjs(function(data){
+    if (data.results.length > 0 ) {
+      var lat = data.results[0].geometry.location.lat;
+      var long = data.results[0].geometry.location.lng;
+      var loc = data.results[0].formatted_address;
 
-        var picked = keys.filter(function(obj) {
-          return obj.key == req.params.key;
-        });
+      var keyObj = addKeyTimer (req.params.key,lat,long);
+      keyObj.loc = loc;
+      addKeyObj (keyObj, function(){
+        getKeyObjs(function(data){
 
-        res.end (JSON.stringify(picked[0]));
-      })
-    });
+          var picked = keys.filter(function(obj) {
+            return obj.key == req.params.key;
+          });
+
+          debug ("geocoder.geocode", picked[0])
+
+          res.end (JSON.stringify(picked[0]));
+        })
+      });
+
+    } else {
+      res.end (JSON.stringify(data));
+    }
+
+
   });
 });
 
@@ -275,8 +352,25 @@ app.get('/add/:key/:postcode', function (req, res) {
 app.get('/test/sunrise/:key', function (req, res) {
 
   var url = "https://maker.ifttt.com/trigger/sunrise/with/key/" + req.params.key;
+  debug ("test/sunrise", url);
   request(url, function (error, response, body) {
-    res.end (body);
+    debug ("test/sunrise", body);
+    var retObj = {};
+
+    try {
+      body=JSON.parse(body);
+    }
+    catch(err) {
+      // Do nothing
+    }
+
+    if(typeof body =='object')
+    {
+      retObj = body;
+    } else {
+      retObj.message = body;
+    }
+    res.end (JSON.stringify(retObj));
   });
 
 });
@@ -290,8 +384,26 @@ app.get('/test/sunrise/:key', function (req, res) {
 app.get('/test/sunset/:key', function (req, res) {
 
   var url = "https://maker.ifttt.com/trigger/sunset/with/key/" + req.params.key;
+  debug ("test/sunset", url);
   request(url, function (error, response, body) {
-    res.end (body);
+    debug ("test/sunset", body);
+    var retObj = {};
+
+    try {
+      body=JSON.parse(body);
+    }
+    catch(err) {
+      // Do nothing
+    }
+
+
+    if(typeof body =='object')
+    {
+      retObj = body;
+    } else {
+      retObj.message = body;
+    }
+    res.end (JSON.stringify(retObj));
   });
 
 });
@@ -334,6 +446,7 @@ app.get('/list', function (req, res) {
 //      data[i].id = hideKey(data[i].id);
 //      data[i].key = hideKey(data[i].key);
     }
+    debug ("/list", data);
     res.end (JSON.stringify(keyList));
   })
 });
@@ -392,14 +505,20 @@ app.get('/timers/:key', function (req, res) {
     return obj.key == req.params.key;
   });
 
+  debug ("/timers/" + req.params.key, picked);
+
   var obj = {};
   if (picked.length > 0 ) {
     obj.key = req.params.key;
     obj.sunrise = picked[0].sunriseTimer.nextInvocation();
     obj.sunset = picked[0].sunsetTimer.nextInvocation();
+    obj.lat = picked[0].lat;
+    obj.long = picked[0].long;
+    obj.loc = picked[0].loc;
   } else {
     obj.error = "Key not found";
     obj.key = req.params.key;
+    debug ("/timers/" + req.params.key, obj);
   }
 
 
@@ -489,7 +608,6 @@ app.listen(appEnv.port, '0.0.0.0', function() {
 
 
 
-
 // *********
 // Test block
 // *********
@@ -519,16 +637,28 @@ addKeyTimer (keyObj.key, keyObj.lat, keyObj.long);
 console.log(JSON.stringify(keys));
 */
 
+
 /*
+// Test the timers fire correctly
+
+var keyObj = {
+  "key" : "KEY123",
+  "lat" : "51.233738",
+  "long" : "-0.558809"
+};
+
 
 
 var times = new Date();
-times.setTime(times.getTime() + 1000 * 60);
+times.setTime(times.getTime() + 1000 * 30);
 
-setSunriseTimer (keyObj, times);
-setSunsetTimer (keyObj,times);
+keyObj.sunriseTimer = setSunriseTimer (keyObj, times);
+keyObj.sunsetTimer = setSunsetTimer (keyObj,times);
+keys.push(keyObj);
+*/
 
 
+/*
 addKeyObj (keyObj, function(){
   getKeyObjs(function(data){
     console.log (JSON.stringify(data));
@@ -536,6 +666,8 @@ addKeyObj (keyObj, function(){
 });
 
 */
+
+
 
 
 /*
