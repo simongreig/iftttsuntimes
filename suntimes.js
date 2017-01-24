@@ -133,9 +133,7 @@ var getKeyObjs = function (callback) {
 //
 //******************************************************************************
 var getKeyObj = function (key, callback) {
-
     db.get(key, function(err, data) {
-      debug ("getKeyObj", key, err, data)
       if (!data) {
         callback(err);
       } else {
@@ -528,6 +526,37 @@ app.get('/timers/:key', function (req, res) {
   res.end (JSON.stringify(obj));
 
 });
+
+
+//******************************************************************************
+//
+// This route gets the list of locations in the database
+//
+// Returns: The list of locations
+//
+//******************************************************************************
+app.get('/map', function (req, res) {
+
+  getKeyObjs ( function(data) {
+    var retObj = [];
+    for (var i = 0; i < data.length; i++) {
+      getKeyObj (data[i].key, function (keyObj) {
+        // addKeyTimer(data);
+        var locObj = {} ;
+        locObj.lat = keyObj.lat;
+        locObj.long = keyObj.long;
+        locObj.loc = keyObj.loc;
+        retObj.push (locObj);
+        debug ("/map: Received", retObj.length, "Waiting for", data.length)
+        if (retObj.length == data.length) {
+          res.end (JSON.stringify(retObj));
+        }
+      });
+    }
+  });
+});
+
+
 
 
 //******************************************************************************

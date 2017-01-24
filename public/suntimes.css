@@ -163,3 +163,9 @@ li {
 #bubble-title {
   font-weight: bold;
 }
+
+#credit {
+  float: right;
+  margin-top: -13px;
+  font-size: 10pt;
+}
