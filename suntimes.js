@@ -50,6 +50,8 @@ var cloudant = Cloudant(credentials);
 var dbName = "iftttsuntimes-test";
 if (process.env.NODE_ENV == "production") {
   dbName = "iftttsuntimes";
+} else if (process.env.NODE_ENV == "test") {
+  dbName = "iftttsuntimes-mocha";
 }
 console.log ("Using DB:", dbName);
 var db = cloudant.db.use(dbName);
@@ -100,6 +102,7 @@ var addKeyObj = function (obj, callback) {
     updateData.keyObj.lat = obj.lat;
     updateData.keyObj.long = obj.long;
     updateData.keyObj.loc = obj.loc;
+    updateData.keyObj.timestamp = new Date();
 
 
     db.insert(updateData, function(err, data) {
@@ -330,14 +333,14 @@ app.get('/add/:key/:postcode', function (req, res) {
             return obj.key == req.params.key;
           });
 
-          debug ("geocoder.geocode", picked[0])
+          debug ("/add/:key/:postcode getKeyObjs", picked[0])
 
           res.end (JSON.stringify(picked[0]));
         })
       });
 
     } else {
-      res.end (JSON.stringify(data));
+      res.status(404).send (JSON.stringify(data));
     }
 
 
@@ -441,14 +444,14 @@ app.get('/list', function (req, res) {
 //  res.end(JSON.stringify(keys));
   getKeyObjs(function(data){
     var keyList = [];
-    for (i=0;i<data.length;i++) {
+    for (var i=0;i<data.length;i++) {
       keyList.push (hideKey(data[i].id));
 //      console.log(data[i]);
 //      data[i].id = hideKey(data[i].id);
 //      data[i].key = hideKey(data[i].key);
     }
-    debug ("/list", data);
-    res.end (JSON.stringify(keyList));
+    debug ("/list", keyList);
+    res.send (keyList);
   })
 });
 
@@ -636,6 +639,9 @@ app.listen(appEnv.port, '0.0.0.0', function() {
   console.log("IFTTT Sun Times starting on " + appEnv.url);
 });
 
+//app.set('port', appEnv.port);
+//console.log(app.get('port'));
+module.exports = app; // for testing
 
 
 

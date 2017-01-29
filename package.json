@@ -7,15 +7,19 @@
   "main": "suntimes.js",
   "scripts": {
     "start": "node suntimes.js",
-    "debug": "DEBUG=suntimes node suntimes.js"
+    "debug": "DEBUG=suntimes node suntimes.js",
+    "debug-test": "DEBUG=suntimes NODE_ENV=test node suntimes.js",
+    "test": "DEBUG=suntimes NODE_ENV=test ./node_modules/.bin/mocha --reporter spec"
   },
   "dependencies": {
     "cfenv": "^1.0.3",
+    "chai": "^3.5.0",
     "cloudant": "^1.7.0",
     "debug": "^2.6.0",
     "express": "^4.13.4",
     "geocoder": "^0.2.2",
     "helmet": "^3.4.0",
+    "mocha": "^3.2.0",
     "node-schedule": "^1.2.0",
     "request": "^2.79.0",
     "suncalc": "^1.8.0"
