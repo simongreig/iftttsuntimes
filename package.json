@@ -7,14 +7,14 @@
   "main": "suntimes.js",
   "scripts": {
     "start": "node suntimes.js",
-    "debug": "DEBUG=suntimes node suntimes.js",
-    "debug-test": "DEBUG=suntimes NODE_ENV=test node suntimes.js",
-    "test": "DEBUG=suntimes NODE_ENV=test ./node_modules/.bin/mocha --reporter spec"
+    "debug": "CRYPTO_KEY=somepassword NODE_ENV=test DEBUG=suntimes,suntimes-db node suntimes.js",
+    "test": "CRYPTO_KEY=somepassword NODE_ENV=mocha ./node_modules/.bin/mocha --reporter spec"
   },
   "dependencies": {
     "cfenv": "^1.0.3",
     "chai": "^3.5.0",
     "cloudant": "^1.7.0",
+    "crypto-js": "^3.1.9-1",
     "debug": "^2.6.0",
     "express": "^4.13.4",
     "geocoder": "^0.2.2",

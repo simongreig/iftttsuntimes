@@ -8,53 +8,12 @@ var geocoder = require('geocoder');
 var schedule = require('node-schedule');
 const express = require('express');
 var cfenv = require('cfenv');
-var Cloudant = require('cloudant');
 var helmet = require('helmet')
 var debug = require('debug')('suntimes');
+var db = require ('./suntimes-db');
 
 const app = express();
 app.use (helmet());
-
-var credentials = {} ;
-
-//******************************************************************************
-//
-// Get the database parameters from the VCAP_SERVICES.  If running locally
-// then get from the local environment.
-//
-//******************************************************************************
-function initDBConnection() {
-  var vcapServices = {};
-  if (process.env.VCAP_SERVICES) {
-    vcapServices = JSON.parse(process.env.VCAP_SERVICES);
-  } else {
-    try {
-      vcapServices = require('./local/VCAP_SERVICES.json');
-      console.log ("Running with LOCAL VCAP_SERVICES", vcapServices);
-    } catch (e) {
-      debug(e);
-    }
-  }
-
-	if(vcapServices) {
-    credentials = vcapServices.cloudantNoSQLDB[0].credentials ;
-    debug ("Using credentials", credentials);
-	} else{
-		debug ('VCAP_SERVICES environment variable not set!');
-	}
-}
-
-// Sort out the database connections and names.
-initDBConnection();
-var cloudant = Cloudant(credentials);
-var dbName = "iftttsuntimes-test";
-if (process.env.NODE_ENV == "production") {
-  dbName = "iftttsuntimes";
-} else if (process.env.NODE_ENV == "test") {
-  dbName = "iftttsuntimes-mocha";
-}
-console.log ("Using DB:", dbName);
-var db = cloudant.db.use(dbName);
 
 
 // serve the files out of ./public as our main files
@@ -79,97 +38,26 @@ function hideKey (key) {
 
 //******************************************************************************
 //
-// Add a key object to the database.
+// Add a key object to the database and the timer list
+// Callback(data)
 //
 //******************************************************************************
-var addKeyObj = function (obj, callback) {
-  // Try to add the key by first reading it to make sure we don't duplicate.
-  db.get(obj.key, function(err, data) {
+var add = function (obj, callback) {
 
-    var updateData = {};
-    if (data) {
-      // Row exists so do an update.
-      updateData._id = data._id;
-      updateData._rev = data._rev;
+  debug ("add entered:", obj);
+  db.addKeyObj (obj, function(dbData){
+    debug ("add:", dbData)
 
-    } else {
-      // No row exists
-      updateData._id = obj.key;
-    }
-
-    updateData.keyObj = {};
-    updateData.keyObj.key = obj.key;
-    updateData.keyObj.lat = obj.lat;
-    updateData.keyObj.long = obj.long;
-    updateData.keyObj.loc = obj.loc;
-    updateData.keyObj.timestamp = new Date();
-
-
-    db.insert(updateData, function(err, data) {
-      if (err) {
-        callback (err);
-      } else {
-        callback (data);
-      }
+    // Data returned the DB summary, now need to get the full record.
+    db.getWithID (dbData.id, function(keyObj) {
+      addKeyTimer (keyObj);
+      debug ("add returned:", keyObj);
+      callback (keyObj)
     });
+
   });
+
 }
-
-//******************************************************************************
-//
-// Get all objects.
-//
-//******************************************************************************
-var getKeyObjs = function (callback) {
-    db.list(function(err, data) {
-      if (err) {
-        callback (err);
-      } else {
-        callback ( data.rows );
-      }
-  });
-}
-
-//******************************************************************************
-//
-// Get details about an object.
-//
-//******************************************************************************
-var getKeyObj = function (key, callback) {
-    db.get(key, function(err, data) {
-      if (!data) {
-        callback(err);
-      } else {
-        callback (data.keyObj);
-      }
-    });
-}
-
-//******************************************************************************
-//
-// Delete a key object from the database
-//
-//******************************************************************************
-var deleteKeyObj = function (key, callback) {
-
-  db.get(key, function(err, data) {
-
-    if (err) {
-      debug ("deleteKeyObj: Error:", err)
-      // callback(err);
-    } else {
-      db.destroy(data._id, data._rev, function(err, data) {
-        // the callback is not in the scope of the destroy function
-/*        if (!data) {
-          callback(err);
-        } else {
-          callback (data.keyObj);
-        }*/
-      });
-    }
-  });
-}
-
 
 //******************************************************************************
 //
@@ -177,7 +65,7 @@ var deleteKeyObj = function (key, callback) {
 //
 //******************************************************************************
 function setSunriseTimer (keyObj, date) {
-
+  debug ("setSunriseTimer", keyObj, date)
   console.log ("Setting sunrise trigger for key " + hideKey(keyObj.key) + " at " + date);
   var sunriseTimer = schedule.scheduleJob (date, function(schedKey){
 
@@ -287,17 +175,11 @@ app.get('/add/:key/:lat/:long', function (req, res) {
   keyObj.key = req.params.key;
   keyObj.lat = req.params.lat;
   keyObj.long = req.params.long;
-  addKeyTimer (keyObj);
-  addKeyObj (keyObj, function(){
-    getKeyObjs(function(data){
 
-      var picked = keys.filter(function(obj) {
-        return obj.key == req.params.key;
-      });
-
-      res.end (JSON.stringify(picked[0]));
-    })
+  add (keyObj, function(data){
+    res.send(data);
   });
+
 });
 
 //******************************************************************************
@@ -305,7 +187,7 @@ app.get('/add/:key/:lat/:long', function (req, res) {
 // This route adds a key to the list based on a key and postcode in the
 // REST URL.
 //
-// Returns: The list of keys.
+// Returns: The added object
 //
 //******************************************************************************
 app.get('/add/:key/:postcode', function (req, res) {
@@ -325,22 +207,12 @@ app.get('/add/:key/:postcode', function (req, res) {
       keyObj.long = data.results[0].geometry.location.lng;
       keyObj.loc = data.results[0].formatted_address;
 
-      addKeyTimer (keyObj);
-      addKeyObj (keyObj, function(){
-        getKeyObjs(function(data){
-
-          var picked = keys.filter(function(obj) {
-            return obj.key == req.params.key;
-          });
-
-          debug ("/add/:key/:postcode getKeyObjs", picked[0])
-
-          res.end (JSON.stringify(picked[0]));
-        })
-      });
+      add (keyObj, function(data){
+        res.send(data);
+      })
 
     } else {
-      res.status(404).send (JSON.stringify(data));
+      res.status(404).send (data);
     }
 
 
@@ -427,7 +299,7 @@ app.get('/geocode/:postcode', function (req, res) {
 
   geocoder.geocode(req.params.postcode, function ( err, data ) {
     // do something with data
-    res.end(JSON.stringify(data));
+    res.send(data);
   });
 
 });
@@ -441,8 +313,7 @@ app.get('/geocode/:postcode', function (req, res) {
 //
 //******************************************************************************
 app.get('/list', function (req, res) {
-//  res.end(JSON.stringify(keys));
-  getKeyObjs(function(data){
+  db.getKeyObjs(function(data){
     var keyList = [];
     for (var i=0;i<data.length;i++) {
       keyList.push (hideKey(data[i].id));
@@ -463,10 +334,14 @@ app.get('/list', function (req, res) {
 //
 //******************************************************************************
 app.get('/remove/:key', function (req, res) {
-//  res.end(JSON.stringify(keys));
-  deleteKeyObj(req.params.key, function (data) {
-    res.end (JSON.stringify(data));
-  })
+  db.deleteKeyObj(req.params.key, function (data) {
+    debug ("/remove/", req.params.key, "deleteKeyObj:", data);
+    if (data.statusCode ) {
+      res.status(data.statusCode).send (data.error);
+    } else {
+      res.send (data);
+    }
+  });
 });
 
 
@@ -490,8 +365,8 @@ app.get('/key/:key', function (req, res) {
 
 */
 
-  getKeyObj ( req.params.key, function (data) {
-    res.end (JSON.stringify(data));
+  db.getWithKey ( req.params.key, function (data) {
+    res.send (data);
   })
 });
 
@@ -526,7 +401,7 @@ app.get('/timers/:key', function (req, res) {
   }
 
 
-  res.end (JSON.stringify(obj));
+  res.send (obj);
 
 });
 
@@ -540,10 +415,11 @@ app.get('/timers/:key', function (req, res) {
 //******************************************************************************
 app.get('/map', function (req, res) {
 
-  getKeyObjs ( function(data) {
+  db.getKeyObjs ( function(data) {
+    debug ("/map getKeyObjs:", data)
     var retObj = [];
     for (var i = 0; i < data.length; i++) {
-      getKeyObj (data[i].key, function (keyObj) {
+      db.getWithID (data[i].key, function (keyObj) {
         // addKeyTimer(data);
         var locObj = {} ;
         locObj.lat = keyObj.lat;
@@ -622,9 +498,10 @@ function addKeyTimer (keyObj) {
 }
 
 // List the keys from the database and start new timers for each
-getKeyObjs ( function(data) {
+db.getKeyObjs ( function(data) {
+  debug ("Start up keys:", data)
   for (var i = 0; i < data.length; i++) {
-    getKeyObj (data[i].key, function (data) {
+    db.getWithID (data[i].key, function (data) {
       addKeyTimer(data);
     });
   }
@@ -643,6 +520,17 @@ app.listen(appEnv.port, '0.0.0.0', function() {
 //console.log(app.get('port'));
 module.exports = app; // for testing
 
+
+/*
+var obj = {};
+obj.key="TEST";
+obj.lat=51
+obj.long=-2
+obj.loc="Winchester"
+add(obj, function (ret) {
+  console.log ("***ADD", ret);
+});
+*/
 
 
 

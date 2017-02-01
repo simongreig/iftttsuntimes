@@ -25,7 +25,7 @@
         $.get(url, function(data, status){
             if (status == "success") {
 
-              dataObj = JSON.parse(data);
+              dataObj = data;
 
               if (dataObj.sunrise) {
                 var sunriseDate = new Date(dataObj.sunrise);
@@ -144,7 +144,7 @@
         console.log (url);
           $.get(url, function(data, status){
               console.log ("#postcode-button Data: " + data + "\nStatus: " + status);
-              dataObj = JSON.parse(data);
+              dataObj = data;
 
               if (dataObj.key )
               {

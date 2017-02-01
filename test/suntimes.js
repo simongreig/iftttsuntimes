@@ -2,11 +2,11 @@ var chai    = require("chai");
 var expect = chai.expect;
 var should = chai.should();
 var suntimes = require("../suntimes");
+var suntimesDB = require("../suntimes-db");
 var request = require("request");
 
 
 var urlBase = "http://localhost:6006";
-
 
 describe ( "Suntimes", function() {
 
@@ -153,7 +153,6 @@ describe ( "Suntimes", function() {
           expect(error).to.be.null;
           expect(body).not.to.be.null;
           mapList = JSON.parse(body);
-          console.log ("******", mapList, keyObj, updatedKeyObj);
           expect (mapList.length).to.equal(1);
           expect (mapList[0].lat).to.equal(updatedKeyObj.lat);
           expect (mapList[0].long).to.equal(updatedKeyObj.long);
@@ -170,19 +169,22 @@ describe ( "Suntimes", function() {
           expect(response.statusCode).to.equal(200);
           expect(error).to.be.null;
           expect(body).not.to.be.null;
+          body = JSON.parse(body);
+          expect (body.ok).to.be.true;
+//          expect (body.id).to.equal(updatedKeyObj.key);
+//          expect (body.keyObj.long).to.equal(updatedKeyObj.long);
+//          expect (body.keyObj.loc).to.equal(updatedKeyObj.loc);
           done();
         });
       });
 
 
-      it ("will shrink the database by one after the delete", (done) => {
-        var url = urlBase + "/list";
+      it.skip ("will return an error when deleting an invalid key", (done) => {
+        var url = urlBase + "/remove/mumbjojumbokey252525";
         request(url, function(error, response, body) {
-          expect(response.statusCode).to.equal(200);
+          expect(response.statusCode).to.equal(404);
           expect(error).to.be.null;
-          expect(body).not.to.be.null;
-          keyList = JSON.parse(body);
-          expect (keyList.length).to.equal(baselineDBsize);
+          expect(body).to.equal("not_found");
           done();
         });
       });
@@ -193,4 +195,14 @@ describe ( "Suntimes", function() {
 
 
   }); // API Tests
+
+  describe ("Timer tests", function() {
+    it ("will start a sunrise timer");
+    it ("will trigger a sunrise timer")
+    it ("will start a sunset timer");
+    it ("will trigger a sunset timer")
+
+  }); // Timer tests
+
+
 }); // Testing suntimes
