@@ -1,7 +1,10 @@
+/*jshint expr: true*/
+/*jshint node: true*/
+
 var chai    = require("chai");
 var expect = chai.expect;
 var should = chai.should();
-var suntimesDB = require("../suntimes-db");
+var suntimesDB = require("../src/suntimes-db");
 
 
 
@@ -62,7 +65,7 @@ describe ( "Database & Security", function() {
         keyObj.key = testKey;
         keyObj.lat = 20;
         keyObj.long = 10;
-        keyObj.loc = "Berlin"
+        keyObj.loc = "Berlin";
 
         suntimesDB.addKeyObj (keyObj, function (data) {
           expect(data).not.to.be.null;
@@ -75,7 +78,7 @@ describe ( "Database & Security", function() {
         keyObj.key = testKey;
         keyObj.lat = 5;
         keyObj.long = 7;
-        keyObj.loc = "Winchester"
+        keyObj.loc = "Winchester";
 
         suntimesDB.addKeyObj (keyObj, function (data) {
           expect(data).not.to.be.null;

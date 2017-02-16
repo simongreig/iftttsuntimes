@@ -1,8 +1,10 @@
+/*jshint expr: true*/
+
 var chai    = require("chai");
 var expect = chai.expect;
 var should = chai.should();
-var suntimes = require("../suntimes");
-var suntimesDB = require("../suntimes-db");
+var suntimes = require("../src/suntimes");
+var suntimesDB = require("../src/suntimes-db");
 var request = require("request");
 
 
@@ -198,9 +200,9 @@ describe ( "Suntimes", function() {
 
   describe ("Timer tests", function() {
     it ("will start a sunrise timer");
-    it ("will trigger a sunrise timer")
+    it ("will trigger a sunrise timer");
     it ("will start a sunset timer");
-    it ("will trigger a sunset timer")
+    it ("will trigger a sunset timer");
 
   }); // Timer tests
 
