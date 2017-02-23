@@ -25,8 +25,6 @@ if (process.env.NODE_ENV != "production") {
 console.log ("Using DB:", dbName);
 var db = cloudant.db.use(dbName);
 
-var _this = this;
-
 
 
 //******************************************************************************
@@ -65,55 +63,59 @@ function initDBConnection() {
 // Does what it says on the tin
 //
 //******************************************************************************
-exports.encrypt = function (plaintext) {
+var encrypt = function (plaintext) {
   return CryptoJS.AES.encrypt (plaintext, CRYPTO_KEY).toString();
 };
+exports.encrypt = encrypt;
 
 //******************************************************************************
 //
 // Does what it says on the tin
 //
 //******************************************************************************
-exports.decrypt = function (ciphertext) {
+var decrypt = function (ciphertext) {
   var bytes  = CryptoJS.AES.decrypt(ciphertext.toString(), CRYPTO_KEY);
   var plaintext = bytes.toString(CryptoJS.enc.Utf8);
   return plaintext ;
 };
+exports.decrypt = decrypt;
+
 
 //******************************************************************************
 //
 // Does what it says on the tin
 //
 //******************************************************************************
-exports.hash = function (plaintext) {
+var hash = function (plaintext) {
   return CryptoJS.HmacSHA1(plaintext, CRYPTO_KEY).toString() ;
 };
+exports.hash = hash;
 
 //******************************************************************************
 //
 // Does what it says on the tin
 //
 //******************************************************************************
-exports.hashCheck = function (plaintext, hashstring) {
-  if (this.hash(plaintext) == hashstring) {
+var hashCheck = function (plaintext, hashstring) {
+  if (hash(plaintext) == hashstring) {
     return true;
   } else {
     return false;
   }
 };
+exports.hashCheck = hashCheck;
 
 //******************************************************************************
 //
 // Add a key object to the database.
 //
 //******************************************************************************
-exports.addKeyObj = function (obj, callback) {
+var addKeyObj = function (obj, callback) {
   // Try to add the key by first reading it to make sure we don't duplicate.
   debug ("addKeyObj entered:", obj);
-  var mainObj = this;
-  db.get(this.hash(obj.key), function(err, data) {
+  db.get(hash(obj.key), function(err, data) {
 
-    debug ("addKeyObj PRE-GET:", err, data, mainObj);
+    debug ("addKeyObj PRE-GET:", err, data);
 
 
     var updateData = {};
@@ -124,11 +126,11 @@ exports.addKeyObj = function (obj, callback) {
 
     } else {
       // No row exists
-      updateData._id = mainObj.hash(obj.key);
+      updateData._id = hash(obj.key);
     }
 
     updateData.keyObj = {};
-    updateData.keyObj.key = mainObj.encrypt(obj.key);
+    updateData.keyObj.key = encrypt(obj.key);
     updateData.keyObj.lat = obj.lat;
     updateData.keyObj.long = obj.long;
     updateData.keyObj.loc = obj.loc;
@@ -144,13 +146,14 @@ exports.addKeyObj = function (obj, callback) {
     });
   });
 };
+exports.addKeyObj = addKeyObj;
 
 //******************************************************************************
 //
 // Get all objects.
 //
 //******************************************************************************
-exports.getKeyObjs = function (callback) {
+var getKeyObjs = function (callback) {
     db.list(function(err, data) {
       if (err) {
         callback (err);
@@ -159,22 +162,24 @@ exports.getKeyObjs = function (callback) {
       }
   });
 };
+exports.getKeyObjs = getKeyObjs;
 
 //******************************************************************************
 //
 // Get details about an object.
 //
 //******************************************************************************
-exports.getWithKey = function (key, callback) {
-  _this.getWithID(_this.hash(key), callback);
+var getWithKey = function (key, callback) {
+  getWithID(hash(key), callback);
 };
+exports.getWithKey = getWithKey;
 
 //******************************************************************************
 //
 // Get details about an object and decrpyts the key.
 //
 //******************************************************************************
-exports.getWithID = function (id, callback) {
+var getWithID = function (id, callback) {
   debug ("getWithID entered:", id);
   db.get(id, function(err, data) {
     if (!data) {
@@ -184,20 +189,21 @@ exports.getWithID = function (id, callback) {
       debug ("getWithID", data);
       if (data.keyObj) {
         var keyObj = data.keyObj;
-        keyObj.key = _this.decrypt (keyObj.key);
+        keyObj.key = decrypt (keyObj.key);
         debug ("getWithID returned:", data.keyObj);
         callback (data.keyObj);
       }
     }
   });
 };
+exports.getWithID = getWithID;
 
 //******************************************************************************
 //
 // Get details about an object without decrypting the contents.
 //
 //******************************************************************************
-exports.getRaw = function (id, callback) {
+var getRaw = function (id, callback) {
   debug ("getRaw entered:", id);
   db.get(id, function(err, data) {
     if (!data) {
@@ -214,15 +220,16 @@ exports.getRaw = function (id, callback) {
     }
   });
 };
+exports.getRaw = getRaw;
 
 //******************************************************************************
 //
 // Delete a key object from the database
 //
 //******************************************************************************
-exports.deleteKeyObj = function (key, callback) {
+var deleteKeyObj = function (key, callback) {
 
-  db.get(_this.hash(key), function(err, data) {
+  db.get(hash(key), function(err, data) {
 
     if (err) {
       debug ("deleteKeyObj: Error:", err);
@@ -239,3 +246,4 @@ exports.deleteKeyObj = function (key, callback) {
     }
   });
 };
+exports.deleteKeyObj = deleteKeyObj;

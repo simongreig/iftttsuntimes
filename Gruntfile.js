@@ -9,9 +9,7 @@ module.exports = function(grunt) {
         globals: {
           jQuery: true
         },
-        node:true,
-        esversion: 6,
-        validthis:true
+        node:true
       }
     },
     nsp: {

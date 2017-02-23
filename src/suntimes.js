@@ -12,6 +12,7 @@ var helmet = require('helmet');
 var debug = require('debug')('suntimes');
 var db = require ('./suntimes-db');
 
+
 var app = express();
 app.use (helmet());
 
@@ -21,6 +22,7 @@ app.use(express.static(__dirname + '/public'));
 
 
 var keys = [];
+exports.keys = keys; // for testing.  TODO need to make this way better
 
 //******************************************************************************
 //
@@ -61,104 +63,144 @@ var add = function (obj, callback) {
 
 //******************************************************************************
 //
+// Calls the IFTTT maker API.  Uses: callback (key, statusCode, body)
+//
+//******************************************************************************
+var callIFTTT = function (eventName, key, callback) {
+  var url = "https://maker.ifttt.com/trigger/" + eventName + "/with/key/" + key;
+  request(url, function (error, response, body) {
+    debug ("iftttCall:", eventName, " response", response.statusCode, "for key", key, ". Time now " + new Date(),". Body:", body );
+
+    var retObj = {};
+
+    try {
+      body=JSON.parse(body);
+    }
+    catch(err) {
+      // Do nothing
+    }
+
+    if(typeof body == 'object')
+    {
+      retObj = body;
+    } else {
+      retObj.message = body;
+    }
+    callback (key, response.statusCode, retObj);
+  });
+};
+exports.callIFTTT = callIFTTT;
+
+//******************************************************************************
+//
+// Find the index of the keyObj in the array.  Returns -1 if not found.
+//
+//******************************************************************************
+var findKeyIndex = function (key) {
+  return keys.findIndex(function(obj) {
+    return obj.key == key;
+  });
+};
+exports.findKeyIndex = findKeyIndex;
+
+//******************************************************************************
+//
+// Fires the event with IFTTT and handles errors on the way back.
+//
+//******************************************************************************
+var fireEvent = function (eventName, key) {
+  callIFTTT (eventName, key, function(respKey, statusCode, retObj) {
+    debug ("fireEvent: IFTTT " + eventName + " response for key " + key + ". Time now " + new Date(), retObj );
+    if (statusCode == 401) {
+      debug ("fireEvent: IFTTT does not recognise key:", respKey);
+      db.deleteKeyObj(respKey, function(data){});
+
+      // Delete the key from the key list for belt and braces.
+      var foundIdx = findKeyIndex (respKey);
+      if (foundIdx != -1) {
+        keys.splice (foundIdx, 1);
+      }
+      return;  // Don't create another timer.
+    }
+  });
+};
+
+
+//******************************************************************************
+//
+// Set a timer.
+//
+//******************************************************************************
+var setTimer = function (eventName, keyObj, date) {
+
+    debug ("setTimer: Setting " + eventName + " trigger for key " + keyObj.key + " at " + date);
+    var newTimer = schedule.scheduleJob (date, function(schedKeyObj, schedEvent){
+
+      debug ("setTimer:", schedEvent + " for key " + schedKeyObj.key + ". Time now " + new Date() );
+
+      // Fire event.
+      fireEvent (schedEvent, schedKeyObj.key);
+
+      // Work out tomorrow's times and set a new timer.
+
+      var tomorrow = new Date();
+      tomorrow = tomorrow.setDate(date.getDate() + 1);
+
+      var times = SunCalc.getTimes(tomorrow, schedKeyObj.lat, schedKeyObj.long);
+
+      var relevantTime;
+      if (schedEvent == "sunset") {
+        relevantTime = times.sunset;
+      } else if (schedEvent == "sunrise") {
+        relevantTime = times.sunrise;
+      } else {
+        relevantTime = null;
+      }
+
+      // Not sure if passed by reference or by copy but lets try by refercne
+      if (relevantTime) {
+        var timerToUpdate = setTimer (schedEvent, schedKeyObj, relevantTime);
+        if (schedEvent == "sunrise") {
+          schedKeyObj.sunriseTimer = timerToUpdate;
+        } else if (schedEvent == "sunset") {
+          schedKeyObj.sunsetTimer = timerToUpdate;
+        }
+      } else {
+        debug ("setTimer: Unexpected null timer for", schedEvent, schedKeyObj.key);
+      }
+
+    }.bind(null, keyObj, eventName));
+
+    debug ("setTimer:", keyObj.key, eventName, "timer Set " + JSON.stringify(newTimer.nextInvocation()));
+    return newTimer;
+};
+exports.setTimer = setTimer;
+
+
+
+//******************************************************************************
+//
 // Set the sunrise timer.
 //
 //******************************************************************************
-function setSunriseTimer (keyObj, date) {
-  debug ("setSunriseTimer", keyObj, date);
-  console.log ("Setting sunrise trigger for key " + hideKey(keyObj.key) + " at " + date);
-  var sunriseTimer = schedule.scheduleJob (date, function(schedKey){
-
-    console.log ("Sunrise for key " + hideKey(schedKey.key) + ". Time now " + new Date() );
-
-    // Fire event.
-    var url = "https://maker.ifttt.com/trigger/sunrise/with/key/" + schedKey.key;
-    request(url, function (error, response, body) {
-      console.log ("IFTTT sunrise response for key " + hideKey(schedKey.key) + ". Time now " + new Date(), body );
-      if (response.statusCode == 401) {
-        debug ("setSunriseTimer: IFTTT does not recognise key:", schedKey.key);
-        db.deleteKeyObj(schedKey.key);
-        return;  // Don't create another timer.
-      }
-    });
-
-    var tomorrow = new Date();
-    tomorrow = tomorrow.setDate(date.getDate() + 1);
-
-    var times = SunCalc.getTimes(tomorrow, schedKey.lat, schedKey.long);
-
-    var timer = setSunriseTimer (schedKey, times.sunrise);
-
-    // Find the timer in the array.
-    var foundIdx = keys.findIndex(function(obj) {
-      return obj.key == schedKey.key;
-    });
+var setSunriseTimer = function (keyObj, date) {
+  return setTimer ("sunrise", keyObj, date);
+};
+exports.setSunriseTimer = setSunriseTimer;
 
 
-    if (foundIdx != -1) {
-      // Remove existing and cancel timers.
-      debug ("Replacing sunrise object for key ", schedKey.key, "with", timer.nextInvocation());
-      keys[foundIdx].sunriseTimer = timer;
-    } else {
-      debug ("setSunriseTimer: Can't find keyObj for key", schedKey.key, keys);
-    }
 
-  }.bind(null, keyObj));
 
-  console.log (hideKey(keyObj.key), "Sunrise timer Set " + JSON.stringify(sunriseTimer.nextInvocation()));
-  return sunriseTimer;
-}
 
 //******************************************************************************
 //
 // Set the sunset timer.
 //
 //******************************************************************************
-function setSunsetTimer (keyObj, date) {
-
-  console.log ("Setting sunset trigger for key " + hideKey(keyObj.key) + " at " + date);
-  var sunsetTimer = schedule.scheduleJob (date, function(schedKey){
-
-    console.log ("Sunset for key " + hideKey(schedKey.key) + ". Time now " + new Date() );
-
-    // Fire event.
-    var url = "https://maker.ifttt.com/trigger/sunset/with/key/" + schedKey.key;
-    request(url, function (error, response, body) {
-      console.log ("IFTTT sunrise response for key" + hideKey(schedKey.key) + ". Time now " + new Date(), body );
-      if (response.statusCode == 401) {
-        debug ("setSunsetTimer: IFTTT does not recognise key:", schedKey.key);
-        db.deleteKeyObj(schedKey.key);
-        return;  // Don't create another timer.
-      }
-    });
-
-    var tomorrow = new Date();
-    tomorrow = tomorrow.setDate(date.getDate() + 1);
-
-    var times = SunCalc.getTimes(tomorrow, schedKey.lat, schedKey.long);
-
-    var timer = setSunsetTimer (schedKey, times.sunset);
-
-    // Find the timer in the array.
-    var foundIdx = keys.findIndex(function(obj) {
-      return obj.key == schedKey.key;
-    });
-
-    if (foundIdx != -1) {
-      // Remove existing and cancel timers.
-      debug ("Replacing sunset object for key", schedKey.key, "with", timer.nextInvocation());
-      keys[foundIdx].sunsetTimer = timer;
-    } else {
-      debug ("setSunsetTimer: Can't find keyObj for key", schedKey.key);
-    }
-
-
-
-  }.bind(null, keyObj));
-
-  console.log (hideKey(keyObj.key), "Sunset timer Set " + JSON.stringify(sunsetTimer.nextInvocation()));
-  return sunsetTimer;
-}
+var setSunsetTimer = function (keyObj, date) {
+  return setTimer ("sunset", keyObj, date);
+};
+exports.setSunsetTimer = setSunsetTimer;
 
 
 //******************************************************************************
@@ -214,8 +256,6 @@ app.get('/add/:key/:postcode', function (req, res) {
     } else {
       res.status(404).send (data);
     }
-
-
   });
 });
 
@@ -227,26 +267,8 @@ app.get('/add/:key/:postcode', function (req, res) {
 //******************************************************************************
 app.get('/test/sunrise/:key', function (req, res) {
 
-  var url = "https://maker.ifttt.com/trigger/sunrise/with/key/" + req.params.key;
-  debug ("test/sunrise", url);
-  request(url, function (error, response, body) {
-    debug ("test/sunrise", body);
-    var retObj = {};
-
-    try {
-      body=JSON.parse(body);
-    }
-    catch(err) {
-      // Do nothing
-    }
-
-    if(typeof body =='object')
-    {
-      retObj = body;
-    } else {
-      retObj.message = body;
-    }
-    res.end (JSON.stringify(retObj));
+  callIFTTT ("sunrise", req.params.key, function (key, statusCode, body) {
+    res.status(statusCode).send (body);
   });
 
 });
@@ -259,27 +281,8 @@ app.get('/test/sunrise/:key', function (req, res) {
 //******************************************************************************
 app.get('/test/sunset/:key', function (req, res) {
 
-  var url = "https://maker.ifttt.com/trigger/sunset/with/key/" + req.params.key;
-  debug ("test/sunset", url);
-  request(url, function (error, response, body) {
-    debug ("test/sunset", body);
-    var retObj = {};
-
-    try {
-      body=JSON.parse(body);
-    }
-    catch(err) {
-      // Do nothing
-    }
-
-
-    if(typeof body =='object')
-    {
-      retObj = body;
-    } else {
-      retObj.message = body;
-    }
-    res.end (JSON.stringify(retObj));
+  callIFTTT ("sunset", req.params.key, function (key, statusCode, body) {
+    res.status(statusCode).send (body);
   });
 
 });
@@ -317,9 +320,6 @@ app.get('/list', function (req, res) {
     var keyList = [];
     for (var i=0;i<data.length;i++) {
       keyList.push (hideKey(data[i].id));
-//      console.log(data[i]);
-//      data[i].id = hideKey(data[i].id);
-//      data[i].key = hideKey(data[i].key);
     }
     debug ("/list", keyList);
     res.send (keyList);
@@ -446,7 +446,7 @@ app.get('/map', function (req, res) {
 // Add Key to the master list.
 //
 //******************************************************************************
-function addKeyTimer (keyObj) {
+var addKeyTimer = function (keyObj) {
 
 /*  var keyObj = {};
   keyObj.key = key;
@@ -454,13 +454,11 @@ function addKeyTimer (keyObj) {
   keyObj.long = long;*/
 
   // Does this key already exist?
-  var foundIdx = keys.findIndex(function(obj) {
-    return obj.key == keyObj.key;
-  });
+  var foundIdx = findKeyIndex (keyObj.key);
 
   if (foundIdx != -1) {
     // Remove existing and cancel timers.
-    console.log ("Cancelled timers for key:", hideKey(keyObj.key));
+    debug ("Cancelled timers for key:", keyObj.key);
     keys[foundIdx].sunriseTimer.cancel();
     keys[foundIdx].sunsetTimer.cancel();
     keys.splice (foundIdx, 1);
@@ -495,20 +493,30 @@ function addKeyTimer (keyObj) {
   keys.push(keyObj);
 
   return keyObj;
-}
+};
+exports.addKeyTimer = addKeyTimer;
 
+//******************************************************************************
+//
 // List the keys from the database and start new timers for each
-db.getKeyObjs ( function(data) {
-  debug ("Start up keys:", data);
+//
+//******************************************************************************
+var initTimers = function () {
+  db.getKeyObjs ( function(data) {
+    debug ("Start up keys:", data);
 
-  function handleResp (data) {
-    addKeyTimer(data);
-  }
+    function handleResp (data) {
+      addKeyTimer(data);
+    }
 
-  for (var i = 0; i < data.length; i++) {
-    db.getWithID (data[i].key, handleResp);
-  }
-});
+    for (var i = 0; i < data.length; i++) {
+      db.getWithID (data[i].key, handleResp);
+    }
+  });
+};
+
+// Initialise the timers upon start up.
+initTimers();
 
 // get the app environment from Cloud Foundry
 var appEnv = cfenv.getAppEnv();
@@ -518,125 +526,3 @@ app.listen(appEnv.port, '0.0.0.0', function() {
   // print a message when the server starts listening
   console.log("IFTTT Sun Times starting on " + appEnv.url);
 });
-
-//app.set('port', appEnv.port);
-//console.log(app.get('port'));
-module.exports = app; // for testing
-
-
-/*
-var obj = {};
-obj.key="TEST";
-obj.lat=51
-obj.long=-2
-obj.loc="Winchester"
-add(obj, function (ret) {
-  console.log ("***ADD", ret);
-});
-*/
-
-
-
-// *********
-// Test block
-// *********
-
-
-/*
-
-// Testing that a key object will go into the database correctly.
-var keyObj = {};
-keyObj.key = "KEY-TIMER-TEST";
-keyObj.lat = "51";
-keyObj.long = "0";
-keyObj.loc = "Somewhere, someplace, UK";
-addKeyTimer (keyObj);
-addKeyObj (keyObj, function(){
-  getKeyObjs(function(data){
-    console.log (JSON.stringify(data));
-  })
-});
-
-*/
-
-/*
-
-var keyObj = {
-  "key" : "KEY123",
-  "lat" : "51.233738",
-  "long" : "-0.558809"
-};
-
-
-addKeyTimer (keyObj.key, keyObj.lat, keyObj.long);
-console.log(JSON.stringify(keys));
-keyObj.lat = "22";
-keyObj.long = "11";
-addKeyTimer (keyObj.key, keyObj.lat, keyObj.long);
-console.log(JSON.stringify(keys));
-*/
-
-
-/*
-// Test the timers fire correctly
-
-var keyObj = {
-  "key" : "KEY123",
-  "lat" : "51.233738",
-  "long" : "-0.558809"
-};
-
-
-
-var times = new Date();
-times.setTime(times.getTime() + 1000 * 30);
-
-keyObj.sunriseTimer = setSunriseTimer (keyObj, times);
-keyObj.sunsetTimer = setSunsetTimer (keyObj,times);
-keys.push(keyObj);
-*/
-
-
-/*
-addKeyObj (keyObj, function(){
-  getKeyObjs(function(data){
-    console.log (JSON.stringify(data));
-  })
-});
-
-*/
-
-
-
-
-/*
-//    addKey ("KEY1","51.233738","-0.558809");
-//    evaluate (0);
-
-
-    var key = {
-      "key" : "KEY-TIMER-TEST",
-      "lat" : "51.233738",
-      "long" : "-0.558809"
-    };
-
-//    var times = SunCalc.getTimes(new Date(), key.lat, key.long);
-//    setSunriseTimer (key, times.sunrise);
-
-
-
-  // TODO   Add function needs to check if today's sunrise/set is in the past
-  // and if so work out the times for tomorrow.
-
-    var times = new Date();
-    times.setTime(times.getTime() + 1000 * 60);
-
-    setSunriseTimer (key, times);
-    setSunsetTimer (key,times);
-
-    console.log (JSON.stringify(schedule.scheduledJobs));
-*/
-
-// **********
-//  END Test block
-// **********
