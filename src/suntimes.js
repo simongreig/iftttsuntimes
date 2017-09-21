@@ -69,6 +69,7 @@ var add = function (obj, callback) {
 var callIFTTT = function (eventName, key, callback) {
   var url = "https://maker.ifttt.com/trigger/" + eventName + "/with/key/" + key;
   request(url, function (error, response, body) {
+    debug ("iftttCall: response", response);
     debug ("iftttCall:", eventName, " response", response.statusCode, "for key", key, ". Time now " + new Date(),". Body:", body );
 
     var retObj = {};

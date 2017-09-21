@@ -200,7 +200,7 @@ describe ( "Suntimes", function() {
 
   }); // API Tests
 
-  describe.only ("Timer tests", function() {
+  describe ("Timer tests", function() {
 
     describe ("Generic set timer", function() {
 
@@ -339,7 +339,9 @@ describe ( "Suntimes", function() {
           "long" : "-0.558809"
         };
 
-        suntimes.setTimer ( "INCORRECT_EVENT", keyObj, new Date());
+        var trigger = new Date();
+        trigger.setTime(trigger.getTime() + 500);
+        suntimes.setTimer ( "INCORRECT_EVENT", keyObj, trigger);
       });
 
 
