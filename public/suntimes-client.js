@@ -181,7 +181,6 @@
         console.log (url);
           $.get(url, function(data, status){
               console.log ("#test-sunrise-button Data: " + data + "\nStatus: " + status);
-              data = JSON.parse (data);
               if (data.errors) {
                 $("#test-sunrise-button").addClass("button-fail");
                 $("#test-sunrise-button").text ("Fail");
@@ -202,7 +201,6 @@
         console.log (url);
           $.get(url, function(data, status){
               console.log ("#test-sunset-button Data: " + data + "\nStatus: " + status);
-              data = JSON.parse (data);
               if (data.errors) {
                 $("#test-sunset-button").addClass("button-fail");
                 $("#test-sunset-button").text ("Fail");
